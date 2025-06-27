@@ -14,13 +14,18 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    steps:
 
+    steps:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Set up Docker Buildx
+    - name: Set up QEMU (for arm64 builds)
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx (with docker-container driver)
       uses: docker/setup-buildx-action@v3
+      with:
+        driver: docker-container
 
     - name: Log in to Azure Container Registry (ACR)
       uses: azure/docker-login@v1
@@ -29,22 +34,26 @@ jobs:
         username: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
         password: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
+    # Backend
     - name: Build and Push Backend Image
       uses: docker/build-push-action@v5
       with:
         context: ./backend
         file: ./backend/Dockerfile
-        platforms: linux/arm64
+        platforms: linux/amd64,linux/arm64
         push: true
         tags: |
           ${{ env.ACR_NAME }}/${{ env.BACKEND_IMAGE }}:${{ env.IMAGE_TAG }}
+          ${{ env.ACR_NAME }}/${{ env.BACKEND_IMAGE }}:latest
 
+    # Frontend
     - name: Build and Push Frontend Image
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
         file: ./frontend/Dockerfile
-        platforms: linux/arm64
+        platforms: linux/amd64,linux/arm64
         push: true
         tags: |
           ${{ env.ACR_NAME }}/${{ env.FRONTEND_IMAGE }}:${{ env.IMAGE_TAG }}
+          ${{ env.ACR_NAME }}/${{ env.FRONTEND_IMAGE }}:latest
